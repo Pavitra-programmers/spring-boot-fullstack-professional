@@ -1,0 +1,28 @@
+# application-prod.yml — Production environment
+# All values MUST come from environment variables — no defaults.
+# Activate with: --spring.profiles.active=prod
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  jpa:
+    show-sql: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    com.example.demo: INFO

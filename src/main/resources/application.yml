@@ -1,0 +1,67 @@
+spring:
+  datasource:
+    # TICKET LF-205: Use Supabase connection pooler URL (port 6543, not 5432) in prod
+    # to avoid exhausting direct Postgres connections under load.
+    url: ${DB_URL:jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:5432/postgres}
+    username: ${DB_USERNAME:postgres.hhadzvrmoaghrlqzngaq}
+    password: ${DB_PASSWORD:BFzbWQnluMdr2XO8}
+    hikari:
+      # TICKET LF-205: Tuned for Supabase — idle connections are recycled before
+      # Supabase closes them at ~30 minutes of server-side inactivity.
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 600000        # 10 min — drop idle connections before Supabase kills them
+      max-lifetime: 1700000       # 28 min — below Supabase's 30-min server-side timeout
+      keepalive-time: 60000       # 1 min keepalive pings on idle connections
+      connection-timeout: 30000   # 30 sec max to acquire a connection from pool
+      pool-name: LaborFlexPool
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    # TICKET LF-205: Disable OSIV — prevents DB connections being held during
+    # serialization/view rendering, reducing pool contention under concurrent load.
+    open-in-view: false
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # TICKET LF-203: Batch fetching reduces N+1 for lazy collections
+        default_batch_fetch_size: 20
+
+  data:
+    redis:
+      # TICKET LF-202: Short timeouts — Redis outage must NOT block app startup or
+      # individual requests. Lettuce connects lazily so startup is unaffected;
+      # these timeouts cap the per-request wait when Redis is down at runtime.
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      connect-timeout: 2000ms
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 2000ms
+
+  cache:
+    type: redis
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# TICKET LF-201: Externalized CORS origins — override per environment.
+# Comma-separate multiple origins: http://localhost:3000,https://app.example.com
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+logging:
+  level:
+    # TICKET LF-203: Verify single consolidated SQL query (no N+1)
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
+    com.example.demo: INFO
